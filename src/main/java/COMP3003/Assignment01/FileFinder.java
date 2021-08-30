@@ -58,30 +58,8 @@ public class FileFinder
                                         double similarity = similarityCheck(file1, file2);
                                         ComparisonResult newResult = new ComparisonResult(curFile, fileStr, similarity);
                                         synchronized (mutex) {
-                                            if (similarity >= 0.50) {
-                                                Platform.runLater(() ->  // Runnable to re-enter GUI thread
-                                                {
-                                                    ui.addResult(newResult);
-                                                });
-                                            }
-                                            //Appends message to file names "FileSimilarities.csv"
-                                            try (PrintWriter writer = new PrintWriter(new FileWriter("FileSimilarities.csv", true))) {
-                                                writer.println(newResult.getFile1() + "," + newResult.getFile2() + "," + newResult.getSimilarity());
-                                            }
-                                            jobCount++;
-                                            double value = jobCount / totalJobsNeeded;
-                                            Platform.runLater(() ->  // Runnable to re-enter GUI thread
-                                            {
-                                                ui.updateProgress(value);
-                                            });
-                                            //System.out.println("Jobs completed: " + jobCount);
-                                            //System.out.println("Total Jobs so Far: " + totalJobsNeeded);
-                                            //System.out.println("Current Progress %: " + value);
-                                            if (value == 1) {
-                                                //Shuts everything down in case they haven't already
-                                                stopAllThreads();
-                                                System.out.println("Execution complete, ending all threads...");
-                                            }
+                                            resultOutput(newResult);
+                                            progressChecker();
                                         }
                                     }
                                 } catch (IOException ex) { /*Ignore it and move on*/ }
@@ -142,7 +120,39 @@ public class FileFinder
         catch(InterruptedException ex) { /*Nothing to do if thread gets interrupted other than end gracefully*/ }
     };
 
-  private double similarityCheck(byte[] file1, byte[] file2)
+    private void resultOutput(ComparisonResult newResult) throws IOException
+    {
+        if (newResult.getSimilarity() >= 0.50) {
+            Platform.runLater(() ->  // Runnable to re-enter GUI thread
+            {
+                ui.addResult(newResult);
+            });
+        }
+        //Appends message to file names "FileSimilarities.csv"
+        try (PrintWriter writer = new PrintWriter(new FileWriter("FileSimilarities.csv", true))) {
+            writer.println(newResult.getFile1() + "," + newResult.getFile2() + "," + newResult.getSimilarity());
+        }
+        jobCount++;
+    }
+
+    private void progressChecker()
+    {
+        double value = jobCount / totalJobsNeeded;
+        Platform.runLater(() ->  // Runnable to re-enter GUI thread
+        {
+            ui.updateProgress(value);
+        });
+        //System.out.println("Jobs completed: " + jobCount);
+        //System.out.println("Total Jobs so Far: " + totalJobsNeeded);
+        //System.out.println("Current Progress %: " + value);
+        if (value == 1) {
+            //Shuts everything down in case they haven't already
+            stopAllThreads();
+            System.out.println("Execution complete, ending all threads...");
+        }
+    }
+
+    private double similarityCheck(byte[] file1, byte[] file2)
     {
         int[][] subsolutions = new int[file1.length+1][file2.length+1];
         boolean[][] directionLeft = new boolean[file1.length+1][file2.length+1];
