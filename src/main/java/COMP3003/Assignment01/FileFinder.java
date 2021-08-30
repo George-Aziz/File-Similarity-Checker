@@ -21,7 +21,7 @@ public class FileFinder
     private ArrayBlockingQueue<String> queue = new ArrayBlockingQueue<String>(100);
     private final Object mutex = new Object();
     private static final String POISON = new String();
-    private ExecutorService consExec = Executors.newFixedThreadPool(3);
+    private ExecutorService consExec;
 
     private UserInterface ui;
     private String searchPath;
@@ -29,13 +29,14 @@ public class FileFinder
     private double totalJobsNeeded;
     private double jobCount;
 
-    public FileFinder(UserInterface ui, String searchPath) {
-
+    public FileFinder(UserInterface ui, String searchPath, int threadCount)
+    {
         this.searchPath = searchPath;
         this.ui = ui;
         totalCount = -1;
         jobCount = 0;
         totalJobsNeeded = 0;
+        consExec = Executors.newFixedThreadPool(threadCount);
     }
 
     Runnable consumerTask = () ->
