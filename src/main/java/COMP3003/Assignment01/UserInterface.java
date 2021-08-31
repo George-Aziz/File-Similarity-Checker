@@ -49,15 +49,13 @@ public class UserInterface {
         // Create toolbar
         Button compareBtn = new Button("Compare...");
         Button stopBtn = new Button("Stop");
-        Button clearBtn = new Button("Clear");
         Text threadPoolCountLabel = new Text("Thread Pool Count:");
         TextField threadPoolCountBox = new TextField("3");
-        ToolBar toolBar = new ToolBar(compareBtn, stopBtn, clearBtn, threadPoolCountLabel, threadPoolCountBox);
+        ToolBar toolBar = new ToolBar(compareBtn, stopBtn, threadPoolCountLabel, threadPoolCountBox);
 
         // Set up button event handlers.
         compareBtn.setOnAction(event -> crossCompare(stage, threadPoolCountBox));
         stopBtn.setOnAction(event -> stopComparison());
-        clearBtn.setOnAction(event -> clearGui());
 
         TableColumn<ComparisonResult,String> file1Col = new TableColumn<>("File 1");
         TableColumn<ComparisonResult,String> file2Col = new TableColumn<>("File 2");
@@ -103,10 +101,12 @@ public class UserInterface {
     private void crossCompare(Stage stage, TextField threadPoolCount)
     {
         if(producerThread == null && consumerThread == null) {
+            //Updates GUI and program to initial state
+            resultTable.getItems().clear();
+            progressBar.setProgress(0.0);
             try (PrintWriter writer = new PrintWriter(new FileWriter("FileSimilarities.csv", false))) {
                 writer.flush();
             } catch (IOException e) { System.out.println("Unable to clear out csv file"); }
-            progressBar.setProgress(0.0);
             DirectoryChooser dc = new DirectoryChooser();
             dc.setInitialDirectory(new File("."));
             dc.setTitle("Choose directory");
@@ -154,13 +154,6 @@ public class UserInterface {
             consumerThread = null;
             System.out.println("Consumer threads ending...");
         }
-    }
-
-    private void clearGui()
-    {
-        //Updates GUI to initial state
-        resultTable.getItems().clear();
-        progressBar.setProgress(0.0);
     }
 
     private void stopComparison()
