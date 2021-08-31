@@ -39,44 +39,6 @@ public class FileFinder
         consExec = Executors.newFixedThreadPool(threadCount);
     }
 
-    Runnable consumerTask = () ->
-    {
-            LinkedList<String> fileList = new LinkedList<>();
-            while(true) {
-                try {
-                    String fileStr = queue.take();
-                    if (fileStr == POISON) {
-                        break;
-                    } else {
-                        fileList.add(fileStr);
-                        for (String curFile : fileList) {
-                            consExec.execute(() ->
-                            {
-                                try {
-                                    if (!curFile.equals(fileStr)) {
-                                        byte[] file1 = Files.readAllBytes(new File(curFile).toPath());
-                                        byte[] file2 = Files.readAllBytes(new File(fileStr).toPath());
-                                        double similarity = similarityCheck(file1, file2);
-                                        ComparisonResult newResult = new ComparisonResult(curFile, fileStr, similarity);
-                                        synchronized (mutex) {
-                                            resultOutput(newResult);
-                                            progressChecker();
-                                        }
-                                    }
-                                } catch (IOException ex) { /*Ignore it and move on*/ }
-                            });
-                        }
-                    }
-                }
-                catch (InterruptedException ex) {
-                    //Nothing to do if thread gets interrupted other than end gracefully and shut down executor
-                    consExec.shutdownNow();
-                    break;
-                }
-            }
-        consExec.shutdown();
-    };
-
     Runnable producerTask = () ->
     {
         try {
@@ -103,22 +65,55 @@ public class FileFinder
                         return FileVisitResult.CONTINUE; //Continues
                     }
                 });
-            }
-            catch(IOException e)
-            {
+            } catch(IOException e) {
                 Platform.runLater(() ->  // Runnable to re-enter GUI thread
                 {
                     // This error handling is a bit quick-and-dirty, but it will suffice here.
                     ui.showError(e.getClass().getName() + ": " + e.getMessage());
                 });
-            }
-            finally
-            {
+            } finally {
                 queue.put(POISON);
                 ui.endProdThread();
             }
         }
         catch(InterruptedException ex) { /*Nothing to do if thread gets interrupted other than end gracefully*/ }
+    };
+
+    Runnable consumerTask = () ->
+    {
+        LinkedList<String> fileList = new LinkedList<>();
+        while (true) {
+            try {
+                String fileStr = queue.take();
+                if (fileStr == POISON) {
+                    ui.endConsThread();
+                    break;
+                } else {
+                    fileList.add(fileStr);
+                    for (String curFile : fileList) {
+                        consExec.execute(() ->
+                        {
+                            try {
+                                if (!curFile.equals(fileStr)) {
+                                    byte[] file1 = Files.readAllBytes(new File(curFile).toPath());
+                                    byte[] file2 = Files.readAllBytes(new File(fileStr).toPath());
+                                    double similarity = similarityCheck(file1, file2);
+                                    ComparisonResult newResult = new ComparisonResult(curFile, fileStr, similarity);
+                                    synchronized (mutex) {
+                                        resultOutput(newResult);
+                                        progressChecker();
+                                    }
+                                }
+                            } catch (IOException ex) { /*Ignore it and move on*/ }
+                        });
+                    }
+                }
+            } catch (InterruptedException ex) {
+                //Nothing to do if thread gets interrupted other than end gracefully and shut down executor
+                consExec.shutdownNow();
+                break;
+            }
+        }
     };
 
     private void resultOutput(ComparisonResult newResult) throws IOException
@@ -194,8 +189,13 @@ public class FileFinder
 
     public void stopAllThreads()
     {
-        consExec.shutdownNow();
-        ui.endConsThread();
-        ui.endProdThread();
+        if(consExec != null && queue != null) {
+            consExec.shutdownNow();
+            ui.endConsThread();
+            ui.endProdThread();
+            ui.enableBtn();
+            consExec = null;
+            queue = null;
+        }
     }
 }

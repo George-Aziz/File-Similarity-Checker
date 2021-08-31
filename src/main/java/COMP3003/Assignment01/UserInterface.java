@@ -29,13 +29,16 @@ import java.util.concurrent.ExecutorService;
  **************************************************************************************/
 public class UserInterface {
 
-    //Table & List used for output to GUI for similarities over 50%
-    private List<ComparisonResult> newResults = new LinkedList<>();
+    //Table used for output to GUI for similarities over 50%
     private TableView<ComparisonResult> resultTable = new TableView<>();
     private ProgressBar progressBar = new ProgressBar();
+    private Button compareBtn, stopBtn;
+    private Text threadPoolCountLabel;
+    private TextField threadPoolCountBox;
+    private ToolBar toolBar;
+
     private Thread producerThread = null;
     private Thread consumerThread = null;
-
     private FileFinder fileFinder = null;
 
     public UserInterface(){ }
@@ -47,11 +50,11 @@ public class UserInterface {
         stage.setMinWidth(600);
 
         // Create toolbar
-        Button compareBtn = new Button("Compare...");
-        Button stopBtn = new Button("Stop");
-        Text threadPoolCountLabel = new Text("Thread Pool Count:");
-        TextField threadPoolCountBox = new TextField("3");
-        ToolBar toolBar = new ToolBar(compareBtn, stopBtn, threadPoolCountLabel, threadPoolCountBox);
+        compareBtn = new Button("Compare...");
+        stopBtn = new Button("Stop");
+        threadPoolCountLabel = new Text("Thread Pool Count:");
+        threadPoolCountBox = new TextField("3");
+        toolBar = new ToolBar(compareBtn, stopBtn, threadPoolCountLabel, threadPoolCountBox);
 
         // Set up button event handlers.
         compareBtn.setOnAction(event -> crossCompare(stage, threadPoolCountBox));
@@ -102,6 +105,7 @@ public class UserInterface {
     {
         if(producerThread == null && consumerThread == null) {
             //Updates GUI and program to initial state
+            //newResults.clear();
             resultTable.getItems().clear();
             progressBar.setProgress(0.0);
             try (PrintWriter writer = new PrintWriter(new FileWriter("FileSimilarities.csv", false))) {
@@ -120,6 +124,7 @@ public class UserInterface {
                     consumerThread = new Thread(fileFinder.consumerTask, "Consumer-Thread");
                     producerThread.start();
                     consumerThread.start();
+                    compareBtn.setDisable(true);
                 } catch(NumberFormatException ex) {
                     showError("Please ensure you've inputted an integer (Whole Number) into thread count text box");
                 }
@@ -129,8 +134,7 @@ public class UserInterface {
 
     public void addResult(ComparisonResult newResult)
     {
-        newResults.add(newResult);
-        resultTable.getItems().setAll(newResults);
+        resultTable.getItems().add(newResult);
     }
 
     public void updateProgress(double progress)
@@ -156,10 +160,18 @@ public class UserInterface {
         }
     }
 
+    public void enableBtn()
+    {
+        compareBtn.setDisable(false);
+    }
+
     private void stopComparison()
     {
-        fileFinder.stopAllThreads();
-        System.out.println("Stopping comparison...");
+        if(fileFinder != null) {
+            fileFinder.stopAllThreads();
+            fileFinder = null;
+            System.out.println("Stopping comparison...");
+        }
     }
 
     public void showError(String message)
