@@ -11,18 +11,19 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.LinkedList;
 import java.util.concurrent.*;
 
-/*************************************************************************************
+/********************************************************************************************
  * Author: George Aziz
  * Purpose: Finds all files & compares each file with another to find similarities
- * Date Last Modified: 29/08/2021
- *************************************************************************************/
-public class FileFinder
-{
+ * Date Last Modified: 01/09/2021
+ * NOTE: similarityCheck() algorithm has been provided and used from Assignment Specification
+ ********************************************************************************************/
+public class FileFinder {
+    //Thread Fields
     private ArrayBlockingQueue<String> queue = new ArrayBlockingQueue<String>(100);
     private final Object mutex = new Object();
     private static final String POISON = new String();
     private ExecutorService consExec;
-
+    //Other Fields
     private UserInterface ui;
     private String searchPath;
     private double totalCount;
@@ -30,6 +31,7 @@ public class FileFinder
     private double jobCount;
     private boolean nonEmptyFileExist;
 
+    //Constructor
     public FileFinder(UserInterface ui, String searchPath, int threadCount)
     {
         this.searchPath = searchPath;
@@ -38,8 +40,10 @@ public class FileFinder
         jobCount = 0;
         totalJobsNeeded = 0;
         consExec = Executors.newFixedThreadPool(threadCount);
+        nonEmptyFileExist = false;
     }
 
+    //Task that goes through directory tree and adds all files into blocking queue
     Runnable producerTask = () ->
     {
         try {
@@ -68,13 +72,12 @@ public class FileFinder
                         return FileVisitResult.CONTINUE; //Continues
                     }
                 });
-            } catch(IOException e) {
+            } catch(IOException ex) {
                 Platform.runLater(() ->  // Runnable to re-enter GUI thread
                 {
-                    // This error handling is a bit quick-and-dirty, but it will suffice here.
-                    ui.showError(e.getClass().getName() + ": " + e.getMessage());
+                    ui.showError(ex.getClass().getName() + ": " + ex.getMessage());
                 });
-            } finally {
+            } finally { //Puts POISON value for Consumer thread and signals to GUI that the thread has ended
                 queue.put(POISON);
                 ui.endProdThread();
             }
@@ -82,6 +85,8 @@ public class FileFinder
         catch(InterruptedException ex) { /*Nothing to do if thread gets interrupted other than end gracefully*/ }
     };
 
+    //Task that takes files from blocking queue and puts it into list that is used for further comparisons
+    //Task also executes similarity check + progress bar update after it in a thread pool
     Runnable consumerTask = () ->
     {
         LinkedList<String> fileList = new LinkedList<>();
@@ -95,23 +100,30 @@ public class FileFinder
                         stopAllThreads();
                     }
                     break;
-                } else {
+                } else { //New file found
+                    //File gets added as that is what stores all previous files before current
                     fileList.add(fileStr);
-                    for (String curFile : fileList) {
+                    for (String curFile : fileList) { //For each file, execute task into thread pool
                         consExec.execute(() ->
                         {
                             try {
-                                if (!curFile.equals(fileStr)) {
+                                if (!curFile.equals(fileStr)) { //Can't do a check on its own
+                                    //Reads all bytes from each file and calculates similarity
                                     byte[] file1 = Files.readAllBytes(new File(curFile).toPath());
                                     byte[] file2 = Files.readAllBytes(new File(fileStr).toPath());
                                     double similarity = similarityCheck(file1, file2);
                                     ComparisonResult newResult = new ComparisonResult(curFile, fileStr, similarity);
-                                    synchronized (mutex) {
-                                        resultOutput(newResult);
-                                        progressChecker();
+                                    synchronized (mutex) { //Synchronises File writing + GUI Output
+                                        resultOutput(newResult); //Writes to file and output to GUI if above 50%
+                                        progressChecker(); //Checks current progress and updated progress bar
                                     }
                                 }
-                            } catch (IOException ex) { /*Ignore it and move on*/ }
+                            } catch (IOException ex) {
+                                Platform.runLater(() ->  // Runnable to re-enter GUI thread
+                                {
+                                    ui.showError(ex.getClass().getName() + ": " + ex.getMessage());
+                                });
+                            }
                         });
                     }
                 }
@@ -123,21 +135,23 @@ public class FileFinder
         }
     };
 
+    //Outputs result either to CSV and/or GUI if above 50%
     private void resultOutput(ComparisonResult newResult) throws IOException
     {
-        if (newResult.getSimilarity() >= 0.50) {
+        if (newResult.getSimilarity() >= 0.50) { //Output to GUI if above 50%
             Platform.runLater(() ->  // Runnable to re-enter GUI thread
             {
                 ui.addResult(newResult);
             });
         }
-        //Appends message to file names "FileSimilarities.csv"
+        //Appends message to file names "FileSimilarities.csv" regardless of %
         try (PrintWriter writer = new PrintWriter(new FileWriter("FileSimilarities.csv", true))) {
             writer.println(newResult.getFile1() + "," + newResult.getFile2() + "," + newResult.getSimilarity());
         }
-        jobCount++;
+        jobCount++; //Increases count of how many jobs have been processed
     }
 
+    //Updates GUI with current progress of program
     private void progressChecker()
     {
         double value = jobCount / totalJobsNeeded;
@@ -145,25 +159,20 @@ public class FileFinder
         {
             ui.updateProgress(value);
         });
-        //System.out.println("Jobs completed: " + jobCount);
-        //System.out.println("Total Jobs so Far: " + totalJobsNeeded);
-        //System.out.println("Current Progress %: " + value);
-        if (value == 1) {
+        if (value == 1) { //Program has finished with no more tasks to be processed
             //Shuts everything down in case they haven't already
-            stopAllThreads();
             System.out.println("Execution complete, ending all threads...");
+            stopAllThreads();
         }
     }
 
+    //LCS Algorithm to retrieve similarities between two files
     private double similarityCheck(byte[] file1, byte[] file2)
     {
         int[][] subsolutions = new int[file1.length+1][file2.length+1];
         boolean[][] directionLeft = new boolean[file1.length+1][file2.length+1];
-
-        //Fill first row and first column of subsolutions with zeros
         for(int i = 0; i < file1.length; i++) { subsolutions[i][0] = 0; }
         for(int i = 0; i < file2.length; i++) { subsolutions[0][i] = 0; }
-
         for(int i = 1; i <= file1.length; i++) {
             for(int j = 1 ; j <= file2.length; j++) {
                 if(file1[i-1] == file2[j-1]) {
@@ -194,13 +203,15 @@ public class FileFinder
         return (matches * 2) / (file1.length + file2.length);
     }
 
+    //Stops all threads and shuts down thread pool
     public void stopAllThreads()
     {
+        //Only ends threads if thread pool hasn't ended which means program was still going
         if(consExec != null && queue != null) {
-            consExec.shutdownNow();
+            consExec.shutdownNow(); //Thread pool end
             ui.endConsThread();
             ui.endProdThread();
-            ui.enableBtn();
+            ui.enableBtn(); //Re-enables button to compare for another comaprison to start
             consExec = null;
             queue = null;
         }

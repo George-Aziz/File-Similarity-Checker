@@ -1,8 +1,6 @@
 package COMP3003.Assignment01;
 
 import javafx.beans.property.SimpleStringProperty;
-import javafx.collections.ObservableList;
-import javafx.geometry.*;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
@@ -14,21 +12,15 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.util.ArrayList;
-import java.util.InputMismatchException;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.concurrent.ExecutorService;
 
 /**************************************************************************************
  * Author: George Aziz
  * Purpose: Basic GUI (JavaFX) to compare files
- * Date Last Modified: 29/08/2021
+ * Date Last Modified: 01/09/2021
  * NOTE: The JavaFX code used within this class has been taken from provided demo code
  * and slightly modified to my needs
  **************************************************************************************/
 public class UserInterface {
-
     //Table used for output to GUI for similarities over 50%
     private TableView<ComparisonResult> resultTable = new TableView<>();
     private ProgressBar progressBar = new ProgressBar();
@@ -36,7 +28,7 @@ public class UserInterface {
     private Text threadPoolCountLabel;
     private TextField threadPoolCountBox;
     private ToolBar toolBar;
-
+    //Thread fields
     private Thread producerThread = null;
     private Thread consumerThread = null;
     private FileFinder fileFinder = null;
@@ -100,22 +92,23 @@ public class UserInterface {
         stage.show();
     }
 
-    //Method call to begin file comparisons
+    //Starts comparison execution
     private void crossCompare(Stage stage, TextField threadPoolCount)
     {
         if(producerThread == null && consumerThread == null) {
             //Updates GUI and program to initial state
-            //newResults.clear();
             resultTable.getItems().clear();
             progressBar.setProgress(0.0);
             try (PrintWriter writer = new PrintWriter(new FileWriter("FileSimilarities.csv", false))) {
                 writer.flush();
             } catch (IOException e) { System.out.println("Unable to clear out csv file"); }
+
+            //Prompts user to select a directory to start comparisons from
             DirectoryChooser dc = new DirectoryChooser();
             dc.setInitialDirectory(new File("."));
             dc.setTitle("Choose directory");
             File directory = dc.showDialog(stage);
-            if(directory!= null) {
+            if(directory!= null) { //Only starts new threads if a directory has been selected by user
                 try {
                     //After directory has been selected ...
                     System.out.println("Comparing files within " + directory.getPath() + "...");
@@ -124,6 +117,7 @@ public class UserInterface {
                     consumerThread = new Thread(fileFinder.consumerTask, "Consumer-Thread");
                     producerThread.start();
                     consumerThread.start();
+                    //Disables comparison button to prevent another execution being executed while one is already running
                     compareBtn.setDisable(true);
                 } catch(NumberFormatException ex) {
                     showError("Please ensure you've inputted an integer (Whole Number) into thread count text box");
@@ -132,16 +126,23 @@ public class UserInterface {
         }
     }
 
+    //Adds a new result into GUI view
     public void addResult(ComparisonResult newResult)
     {
         resultTable.getItems().add(newResult);
     }
-
+    //Sets progress bar to new progress
     public void updateProgress(double progress)
     {
         progressBar.setProgress(progress);
     }
+    //Re-enables button
+    public void enableBtn()
+    {
+        compareBtn.setDisable(false);
+    }
 
+    //Ends Production thread, called by Threads
     public void endProdThread()
     {
         if(producerThread != null) {
@@ -151,6 +152,7 @@ public class UserInterface {
         }
     }
 
+    //Ends Consumer thread, called by Threads
     public void endConsThread()
     {
         if(consumerThread != null) {
@@ -160,11 +162,7 @@ public class UserInterface {
         }
     }
 
-    public void enableBtn()
-    {
-        compareBtn.setDisable(false);
-    }
-
+    //Gets called when "Stop" button is pressed to end all threads
     private void stopComparison()
     {
         if(fileFinder != null) {
@@ -174,6 +172,7 @@ public class UserInterface {
         }
     }
 
+    //GUI Error prompt with error message
     public void showError(String message)
     {
         Alert a = new Alert(Alert.AlertType.ERROR, message, ButtonType.CLOSE);

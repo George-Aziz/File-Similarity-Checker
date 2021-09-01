@@ -1,7 +1,11 @@
 package COMP3003.Assignment01;
 
-public class ComparisonResult
-{
+/*********************************************************************
+ * Author: George Aziz
+ * Purpose: Result object for comparisons between files used for GUI
+ * Date Last Modified: 14/09/2021
+ ********************************************************************/
+public class ComparisonResult {
     private final String file1;
     private final String file2;
     private final double similarity;

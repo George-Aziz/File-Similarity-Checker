@@ -8,8 +8,7 @@ import javafx.stage.Stage;
  * Purpose: Beginning of the program that starts the UI Class (JavaFX GUI)
  * Date Last Modified: 24/08/2021
  *****************************************************************************/
-public class FileSimilarityChecker extends Application
-{
+public class FileSimilarityChecker extends Application {
     public static void main(String[] args)
     {
         launch(args);
