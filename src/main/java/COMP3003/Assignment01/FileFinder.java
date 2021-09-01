@@ -28,6 +28,7 @@ public class FileFinder
     private double totalCount;
     private double totalJobsNeeded;
     private double jobCount;
+    private boolean nonEmptyFileExist;
 
     public FileFinder(UserInterface ui, String searchPath, int threadCount)
     {
@@ -55,7 +56,9 @@ public class FileFinder
                                 if (file.toString().endsWith(".txt") ||
                                         file.toString().endsWith(".md") ||
                                         file.toString().endsWith(".java") ||
-                                        file.toString().endsWith(".cs")) {
+                                        file.toString().endsWith(".cs") ||
+                                        file.toString().endsWith(".csv")) {
+                                    nonEmptyFileExist = true;
                                     queue.put(file.toString());
                                     totalCount = totalCount + 1;
                                     totalJobsNeeded += totalCount;
@@ -86,7 +89,11 @@ public class FileFinder
             try {
                 String fileStr = queue.take();
                 if (fileStr == POISON) {
-                    ui.endConsThread();
+                    if(nonEmptyFileExist) { //If a file exists, the thread pool will handle stopping all threads
+                        ui.endConsThread();
+                    } else { //If no file to be processed then end all threads if they haven't already
+                        stopAllThreads();
+                    }
                     break;
                 } else {
                     fileList.add(fileStr);
