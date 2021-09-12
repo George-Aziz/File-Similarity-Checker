@@ -12,7 +12,6 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.util.LinkedList;
 
 /**************************************************************************************
  * Author: George Aziz
@@ -27,12 +26,13 @@ public class UserInterface {
     private ProgressBar progressBar = new ProgressBar();
     private Button compareBtn, stopBtn;
     private Text threadPoolCountLabel;
-    private TextField threadPoolCountBox;
+    private Label threadPoolCount;
+    private Slider threadPoolCountSlider;
     private ToolBar toolBar;
     //Thread fields
     private Thread producerThread = null;
     private Thread consumerThread = null;
-    private FileFinder fileFinder = null;
+    private FileChecker fileChecker = null;
 
     public UserInterface(){ }
 
@@ -46,12 +46,17 @@ public class UserInterface {
         compareBtn = new Button("Compare...");
         stopBtn = new Button("Stop");
         threadPoolCountLabel = new Text("Thread Pool Count:");
-        threadPoolCountBox = new TextField("3");
-        toolBar = new ToolBar(compareBtn, stopBtn, threadPoolCountLabel, threadPoolCountBox);
+        threadPoolCount = new Label("3");
+        threadPoolCountSlider = new Slider(1,10,3);
+        toolBar = new ToolBar(compareBtn, stopBtn, threadPoolCountLabel, threadPoolCountSlider, threadPoolCount);
 
         // Set up button event handlers.
-        compareBtn.setOnAction(event -> crossCompare(stage, threadPoolCountBox));
+        compareBtn.setOnAction(event -> crossCompare(stage, threadPoolCount));
         stopBtn.setOnAction(event -> stopComparison());
+
+        //Ensures integers are only selected for slider
+        threadPoolCountSlider.valueProperty().addListener((obs, oldVal, newVal) ->
+                threadPoolCount.textProperty().setValue(String.valueOf((int)threadPoolCountSlider.getValue())));
 
         TableColumn<ComparisonResult,String> file1Col = new TableColumn<>("File 1");
         TableColumn<ComparisonResult,String> file2Col = new TableColumn<>("File 2");
@@ -94,7 +99,7 @@ public class UserInterface {
     }
 
     //Starts comparison execution
-    private void crossCompare(Stage stage, TextField threadPoolCount)
+    private void crossCompare(Stage stage, Label threadPoolCount)
     {
         if(producerThread == null && consumerThread == null) {
             //Updates GUI and program to initial state
@@ -113,13 +118,14 @@ public class UserInterface {
                 try {
                     //After directory has been selected ...
                     System.out.println("Comparing files within " + directory.getPath() + "...");
-                    fileFinder = new FileFinder(this, directory.getPath(), Integer.parseInt(threadPoolCount.getText()));
-                    producerThread = new Thread(fileFinder::producerTask, "Producer-Thread");
-                    consumerThread = new Thread(fileFinder::consumerTask, "Consumer-Thread");
+                    fileChecker = new FileChecker(this, directory.getPath(), Integer.parseInt(threadPoolCount.getText()));
+                    producerThread = new Thread(fileChecker::producerTask, "Producer-Thread");
+                    consumerThread = new Thread(fileChecker::consumerTask, "Consumer-Thread");
                     producerThread.start();
                     consumerThread.start();
                     //Disables comparison button to prevent another execution being executed while one is already running
                     compareBtn.setDisable(true);
+                    threadPoolCountSlider.setDisable(true);
                 } catch(NumberFormatException ex) {
                     showError("Please ensure you've inputted an integer (Whole Number) into thread count text box");
                 }
@@ -137,10 +143,12 @@ public class UserInterface {
     {
         progressBar.setProgress(progress);
     }
-    //Re-enables button
-    public void enableBtn()
+
+    //Re-enables GUI
+    public void enableGUI()
     {
         compareBtn.setDisable(false);
+        threadPoolCountSlider.setDisable(false);
     }
 
     //Ends Production thread, called by Threads
@@ -166,9 +174,9 @@ public class UserInterface {
     //Gets called when "Stop" button is pressed to end all threads
     private void stopComparison()
     {
-        if(fileFinder != null) {
-            fileFinder.stopAllThreads();
-            fileFinder = null;
+        if(fileChecker != null) {
+            fileChecker.stopAllThreads();
+            fileChecker = null;
             System.out.println("Stopping comparison...");
         }
     }

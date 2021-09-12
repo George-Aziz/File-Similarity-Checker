@@ -9,7 +9,6 @@ import java.io.PrintWriter;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.LinkedList;
-import java.util.List;
 import java.util.concurrent.*;
 
 /********************************************************************************************
@@ -18,28 +17,28 @@ import java.util.concurrent.*;
  * Date Last Modified: 01/09/2021
  * NOTE: similarityCheck() algorithm has been provided and used from Assignment Specification
  ********************************************************************************************/
-public class FileFinder {
+public class FileChecker {
     //Thread Fields
-    private ArrayBlockingQueue<String> queue = new ArrayBlockingQueue<String>(100);
+    private ArrayBlockingQueue<String> queue = new ArrayBlockingQueue<String>(50);
     private final Object mutex = new Object();
     private static final String POISON = new String();
     private ExecutorService consExec;
     //Other Fields
     private UserInterface ui;
     private String searchPath;
-    private double totalCount;
-    private double totalJobsNeeded;
+    private double producerCount;
+    private double totalJobs;
     private double jobCount;
     private boolean nonEmptyFileExist;
 
     //Constructor
-    public FileFinder(UserInterface ui, String searchPath, int threadCount)
+    public FileChecker(UserInterface ui, String searchPath, int threadCount)
     {
         this.searchPath = searchPath;
         this.ui = ui;
-        totalCount = -1;
+        producerCount = -1;
         jobCount = 0;
-        totalJobsNeeded = 0;
+        totalJobs = 0;
         consExec = Executors.newFixedThreadPool(threadCount);
         nonEmptyFileExist = false;
     }
@@ -65,8 +64,8 @@ public class FileFinder {
                                         file.toString().endsWith(".csv")) {
                                     nonEmptyFileExist = true;
                                     queue.put(file.toString());
-                                    totalCount = totalCount + 1;
-                                    totalJobsNeeded += totalCount;
+                                    producerCount = producerCount + 1;
+                                    totalJobs += producerCount;
                                 }
                             }
                         } catch (InterruptedException e) { }
@@ -155,7 +154,7 @@ public class FileFinder {
     //Updates GUI with current progress of program
     private void progressChecker()
     {
-        double value = jobCount / totalJobsNeeded;
+        double value = jobCount / totalJobs;
         Platform.runLater(() ->  // Runnable to re-enter GUI thread
         {
             ui.updateProgress(value);
@@ -212,7 +211,7 @@ public class FileFinder {
             consExec.shutdownNow(); //Thread pool end
             ui.endConsThread();
             ui.endProdThread();
-            ui.enableBtn(); //Re-enables button to compare for another comaprison to start
+            ui.enableGUI(); //Re-enables button to compare for another comaprison to start
             consExec = null;
             queue = null;
         }
