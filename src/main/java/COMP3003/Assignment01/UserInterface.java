@@ -144,7 +144,7 @@ public class UserInterface {
         progressBar.setProgress(progress);
     }
 
-    //Re-enables GUI
+    //Re-enables GUI so user is able to interact with program again
     public void enableGUI()
     {
         compareBtn.setDisable(false);
