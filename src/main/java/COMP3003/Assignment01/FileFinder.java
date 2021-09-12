@@ -9,6 +9,7 @@ import java.io.PrintWriter;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.concurrent.*;
 
 /********************************************************************************************
@@ -44,7 +45,7 @@ public class FileFinder {
     }
 
     //Task that goes through directory tree and adds all files into blocking queue
-    Runnable producerTask = () ->
+    public void producerTask()
     {
         try {
             try {
@@ -83,11 +84,11 @@ public class FileFinder {
             }
         }
         catch(InterruptedException ex) { /*Nothing to do if thread gets interrupted other than end gracefully*/ }
-    };
+    }
 
     //Task that takes files from blocking queue and puts it into list that is used for further comparisons
     //Task also executes similarity check + progress bar update after it in a thread pool
-    Runnable consumerTask = () ->
+    public void consumerTask()
     {
         LinkedList<String> fileList = new LinkedList<>();
         while (true) {
@@ -133,7 +134,7 @@ public class FileFinder {
                 break;
             }
         }
-    };
+    }
 
     //Outputs result either to CSV and/or GUI if above 50%
     private void resultOutput(ComparisonResult newResult) throws IOException

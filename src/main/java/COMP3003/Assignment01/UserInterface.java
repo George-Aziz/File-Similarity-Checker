@@ -12,6 +12,7 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.util.LinkedList;
 
 /**************************************************************************************
  * Author: George Aziz
@@ -113,8 +114,8 @@ public class UserInterface {
                     //After directory has been selected ...
                     System.out.println("Comparing files within " + directory.getPath() + "...");
                     fileFinder = new FileFinder(this, directory.getPath(), Integer.parseInt(threadPoolCount.getText()));
-                    producerThread = new Thread(fileFinder.producerTask, "Producer-Thread");
-                    consumerThread = new Thread(fileFinder.consumerTask, "Consumer-Thread");
+                    producerThread = new Thread(fileFinder::producerTask, "Producer-Thread");
+                    consumerThread = new Thread(fileFinder::consumerTask, "Consumer-Thread");
                     producerThread.start();
                     consumerThread.start();
                     //Disables comparison button to prevent another execution being executed while one is already running
