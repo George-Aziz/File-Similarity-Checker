@@ -24,8 +24,8 @@ public class FileChecker {
     private static final String POISON = new String();
     private ExecutorService consExec;
     //Other Fields
-    private UserInterface ui;
-    private String searchPath;
+    private final UserInterface ui;
+    private final String searchPath;
     private double producerCount;
     private double totalJobs;
     private double jobCount;
@@ -68,7 +68,7 @@ public class FileChecker {
                                     totalJobs += producerCount;
                                 }
                             }
-                        } catch (InterruptedException e) { }
+                        } catch (InterruptedException e) { /* Nothing to be done*/ }
                         return FileVisitResult.CONTINUE; //Continues
                     }
                 });
