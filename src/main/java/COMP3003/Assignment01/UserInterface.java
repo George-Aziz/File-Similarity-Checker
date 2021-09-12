@@ -157,7 +157,7 @@ public class UserInterface {
         if(producerThread != null) {
             producerThread.interrupt();
             producerThread = null;
-            System.out.println("Producer thread ending...");
+            System.out.println("Producer Thread Ending...");
         }
     }
 
@@ -167,7 +167,7 @@ public class UserInterface {
         if(consumerThread != null) {
             consumerThread.interrupt();
             consumerThread = null;
-            System.out.println("Consumer threads ending...");
+            System.out.println("Main Consumer Thread Ending...");
         }
     }
 
