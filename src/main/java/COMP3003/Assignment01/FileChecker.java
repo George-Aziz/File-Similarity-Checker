@@ -14,7 +14,7 @@ import java.util.concurrent.*;
 /********************************************************************************************
  * Author: George Aziz
  * Purpose: Finds all files & compares each file with another to find similarities
- * Date Last Modified: 01/09/2021
+ * Date Last Modified: 12/09/2021
  * NOTE: similarityCheck() algorithm has been provided and used from Assignment Specification
  ********************************************************************************************/
 public class FileChecker {

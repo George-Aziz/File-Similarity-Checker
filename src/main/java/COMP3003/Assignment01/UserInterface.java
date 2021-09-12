@@ -16,7 +16,7 @@ import java.io.PrintWriter;
 /**************************************************************************************
  * Author: George Aziz
  * Purpose: Basic GUI (JavaFX) to compare files
- * Date Last Modified: 01/09/2021
+ * Date Last Modified: 12/09/2021
  * NOTE: The JavaFX code used within this class has been taken from provided demo code
  * and slightly modified to my needs
  **************************************************************************************/
