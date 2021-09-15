@@ -217,7 +217,8 @@ public class FileChecker {
             ui.updateProgress(value);
         });
 
-        if (value == 1 && producerThread == null) { //Program has finished with no more tasks to be processed
+        //Program has finished with no more tasks to be processed
+        if (value == 1 && producerThread == null && mainConsumerThread == null) {
             //Shuts everything down in case they haven't already
             System.out.println("[Progress Checker] 100% Execution");
             endThreads();
