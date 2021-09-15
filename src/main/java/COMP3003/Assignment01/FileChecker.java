@@ -14,15 +14,18 @@ import java.util.concurrent.*;
 /********************************************************************************************
  * Author: George Aziz
  * Purpose: Finds all files & compares each file with another to find similarities
- * Date Last Modified: 12/09/2021
+ * Date Last Modified: 15/09/2021
  * NOTE: similarityCheck() algorithm has been provided and used from Assignment Specification
  ********************************************************************************************/
 public class FileChecker {
     //Thread Fields
-    private ArrayBlockingQueue<String> queue = new ArrayBlockingQueue<String>(50);
+    private Thread producerThread;
+    private Thread mainConsumerThread;
+    private ArrayBlockingQueue<String> queue;
     private final Object mutex = new Object();
     private static final String POISON = new String();
     private ExecutorService consExec;
+
     //Other Fields
     private final UserInterface ui;
     private final String searchPath;
@@ -39,12 +42,50 @@ public class FileChecker {
         producerCount = -1;
         jobCount = 0;
         totalJobs = 0;
+        queue = new ArrayBlockingQueue<String>(50);
         consExec = Executors.newFixedThreadPool(threadCount);
         nonEmptyFileExist = false;
+        producerThread = null;
+        mainConsumerThread = null;
+    }
+
+    public void startThreads()
+    {
+        if(producerThread == null && mainConsumerThread == null) {
+            producerThread = new Thread(this::producerTask, "Producer-Thread");
+            mainConsumerThread = new Thread(this::mainConsumerTask, "MainConsumer-Thread");
+            producerThread.start();
+            mainConsumerThread.start();
+        }
+    }
+
+    //Stops all threads and shuts down thread pool
+    public void endThreads()
+    {
+        //Only ends threads if thread pool hasn't ended which means program was still going
+        if(queue != null && consExec != null) {
+            System.out.println("Current execution ending...");
+            consExec.shutdownNow(); //Thread pool end
+            if(producerThread != null) {
+                producerThread.interrupt();
+                producerThread = null;
+            }
+            if(mainConsumerThread != null) {
+                mainConsumerThread.interrupt();
+                mainConsumerThread = null;
+            }
+            Platform.runLater(() ->  // Runnable to re-enter GUI thread
+            {
+                ui.enableGUI(); //Re-enables button to compare for another comaprison to start
+            });
+            //Once all threads are complete/ending, no purpose in keeping reference to these values
+            queue = null;
+            consExec = null;
+        }
     }
 
     //Task that goes through directory tree and adds all files into blocking queue
-    public void producerTask()
+    private void producerTask()
     {
         try {
             try {
@@ -77,17 +118,27 @@ public class FileChecker {
                 {
                     ui.showError(ex.getClass().getName() + ": " + ex.getMessage());
                 });
-            } finally { //Puts POISON value for Consumer thread and signals to GUI that the thread has ended
+            } finally { //Puts POISON value for Consumer thread
                 queue.put(POISON);
-                ui.endProdThread();
+                producerThread = null;
+                System.out.println("[Producer Thread] Finished");
             }
         }
-        catch(InterruptedException ex) { /*Nothing to do if thread gets interrupted other than end gracefully*/ }
+        catch(InterruptedException ex) {
+            //Nothing to do if thread gets interrupted other than end gracefully
+            System.out.println("[Producer Thread] Interrupted Exception Occurred. All Threads ending");
+            endThreads();
+        }
+        catch (NullPointerException ex) {
+            //Should never happen but if queue somehow becomes null and enters execution then there will be a null pointer exception
+            System.out.println("[Producer Thread] Null Pointer Exception Occurred. All Threads ending");
+            endThreads();
+        }
     }
 
     //Task that takes files from blocking queue and puts it into list that is used for further comparisons
     //Task also executes similarity check + progress bar update after it in a thread pool
-    public void consumerTask()
+    private void mainConsumerTask()
     {
         LinkedList<String> fileList = new LinkedList<>();
         while (true) {
@@ -95,10 +146,11 @@ public class FileChecker {
                 String fileStr = queue.take();
                 if (fileStr == POISON) {
                     if(nonEmptyFileExist) { //If a file exists, the thread pool will handle stopping all threads
-                        ui.endConsThread();
+                        mainConsumerThread = null;
                     } else { //If no file to be processed then end all threads if they haven't already
-                        stopAllThreads();
+                        endThreads();
                     }
+                    System.out.println("[Main Consumer Thread] Finished");
                     break;
                 } else { //New file found
                     //File gets added as that is what stores all previous files before current
@@ -119,6 +171,11 @@ public class FileChecker {
                                     }
                                 }
                             } catch (IOException ex) {
+                                try (PrintWriter writer = new PrintWriter(new FileWriter("results.csv", true))) {
+                                    writer.println(curFile + "," + fileStr + ", N/A - ERROR OCCURRED");
+                                }
+                                catch (IOException e) { /* If another IOException occurs again then nothing else could be done */}
+
                                 Platform.runLater(() ->  // Runnable to re-enter GUI thread
                                 {
                                     ui.showError(ex.getClass().getName() + ": " + ex.getMessage());
@@ -128,8 +185,9 @@ public class FileChecker {
                     }
                 }
             } catch (InterruptedException ex) {
-                //Nothing to do if thread gets interrupted other than end gracefully and shut down executor
-                consExec.shutdownNow();
+                /*Nothing to do if thread gets interrupted other than end gracefully*/
+                System.out.println("[Main Consumer Thread] Interrupted Exception Occurred. All Threads ending");
+                endThreads();
                 break;
             }
         }
@@ -145,7 +203,7 @@ public class FileChecker {
             });
         }
         //Appends message to file names "FileSimilarities.csv" regardless of %
-        try (PrintWriter writer = new PrintWriter(new FileWriter("FileSimilarities.csv", true))) {
+        try (PrintWriter writer = new PrintWriter(new FileWriter("results.csv", true))) {
             writer.println(newResult.getFile1() + "," + newResult.getFile2() + "," + newResult.getSimilarity());
         }
         jobCount++; //Increases count of how many jobs have been processed
@@ -159,10 +217,11 @@ public class FileChecker {
         {
             ui.updateProgress(value);
         });
+
         if (value == 1) { //Program has finished with no more tasks to be processed
             //Shuts everything down in case they haven't already
-            System.out.println("Execution complete, ending all threads...");
-            stopAllThreads();
+            System.out.println("[Progress Checker] 100% Execution");
+            endThreads();
         }
     }
 
@@ -201,19 +260,5 @@ public class FileChecker {
             else { j -= 1; }
         }
         return (matches * 2) / (file1.length + file2.length);
-    }
-
-    //Stops all threads and shuts down thread pool
-    public void stopAllThreads()
-    {
-        //Only ends threads if thread pool hasn't ended which means program was still going
-        if(consExec != null && queue != null) {
-            consExec.shutdownNow(); //Thread pool end
-            ui.endConsThread();
-            ui.endProdThread();
-            ui.enableGUI(); //Re-enables button to compare for another comaprison to start
-            consExec = null;
-            queue = null;
-        }
     }
 }

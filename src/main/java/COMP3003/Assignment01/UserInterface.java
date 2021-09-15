@@ -16,7 +16,7 @@ import java.io.PrintWriter;
 /**************************************************************************************
  * Author: George Aziz
  * Purpose: Basic GUI (JavaFX) to compare files
- * Date Last Modified: 12/09/2021
+ * Date Last Modified: 15/09/2021
  * NOTE: The JavaFX code used within this class has been taken from provided demo code
  * and slightly modified to my needs
  **************************************************************************************/
@@ -30,8 +30,6 @@ public class UserInterface {
     private Slider threadPoolCountSlider;
     private ToolBar toolBar;
     //Thread fields
-    private Thread producerThread = null;
-    private Thread consumerThread = null;
     private FileChecker fileChecker = null;
 
     public UserInterface(){ }
@@ -52,7 +50,7 @@ public class UserInterface {
 
         // Set up button event handlers.
         compareBtn.setOnAction(event -> crossCompare(stage, threadPoolCount));
-        stopBtn.setOnAction(event -> stopComparison());
+        stopBtn.setOnAction(event -> fileChecker.endThreads());
 
         //Ensures integers are only selected for slider
         threadPoolCountSlider.valueProperty().addListener((obs, oldVal, newVal) ->
@@ -101,34 +99,29 @@ public class UserInterface {
     //Starts comparison execution
     private void crossCompare(Stage stage, Label threadPoolCount)
     {
-        if(producerThread == null && consumerThread == null) {
-            //Updates GUI and program to initial state
-            resultTable.getItems().clear();
-            progressBar.setProgress(0.0);
-            try (PrintWriter writer = new PrintWriter(new FileWriter("FileSimilarities.csv", false))) {
-                writer.flush();
-            } catch (IOException e) { System.out.println("Unable to clear out csv file"); }
+        //Updates GUI and program to initial state
+        resultTable.getItems().clear();
+        progressBar.setProgress(0.0);
+        try (PrintWriter writer = new PrintWriter(new FileWriter("results.csv", false))) {
+            writer.flush(); //Overwrites file to make it empty if already exists
+        } catch (IOException ex) { System.out.println("Unable to clear out csv file"); }
 
-            //Prompts user to select a directory to start comparisons from
-            DirectoryChooser dc = new DirectoryChooser();
-            dc.setInitialDirectory(new File("."));
-            dc.setTitle("Choose directory");
-            File directory = dc.showDialog(stage);
-            if(directory!= null) { //Only starts new threads if a directory has been selected by user
-                try {
-                    //After directory has been selected ...
-                    System.out.println("Comparing files within " + directory.getPath() + "...");
-                    fileChecker = new FileChecker(this, directory.getPath(), Integer.parseInt(threadPoolCount.getText()));
-                    producerThread = new Thread(fileChecker::producerTask, "Producer-Thread");
-                    consumerThread = new Thread(fileChecker::consumerTask, "Consumer-Thread");
-                    producerThread.start();
-                    consumerThread.start();
-                    //Disables comparison button to prevent another execution being executed while one is already running
-                    compareBtn.setDisable(true);
-                    threadPoolCountSlider.setDisable(true);
-                } catch(NumberFormatException ex) {
-                    showError("Please ensure you've inputted an integer (Whole Number) into thread count text box");
-                }
+        //Prompts user to select a directory to start comparisons from
+        DirectoryChooser dc = new DirectoryChooser();
+        dc.setInitialDirectory(new File("."));
+        dc.setTitle("Choose directory");
+        File directory = dc.showDialog(stage);
+        if(directory!= null) { //Only starts new threads if a directory has been selected by user
+            try {
+                //After directory has been selected ...
+                System.out.println("Comparing files within " + directory.getPath() + "...");
+                fileChecker = new FileChecker(this, directory.getPath(), Integer.parseInt(threadPoolCount.getText()));
+                fileChecker.startThreads();
+                //Disables comparison button to prevent another execution being executed while one is already running
+                compareBtn.setDisable(true);
+                threadPoolCountSlider.setDisable(true);
+            } catch(NumberFormatException ex) {
+                showError("Please ensure you've inputted an integer (Whole Number) into thread count text box");
             }
         }
     }
@@ -149,36 +142,6 @@ public class UserInterface {
     {
         compareBtn.setDisable(false);
         threadPoolCountSlider.setDisable(false);
-    }
-
-    //Ends Production thread, called by Threads
-    public void endProdThread()
-    {
-        if(producerThread != null) {
-            producerThread.interrupt();
-            producerThread = null;
-            System.out.println("Producer Thread Ending...");
-        }
-    }
-
-    //Ends Consumer thread, called by Threads
-    public void endConsThread()
-    {
-        if(consumerThread != null) {
-            consumerThread.interrupt();
-            consumerThread = null;
-            System.out.println("Main Consumer Thread Ending...");
-        }
-    }
-
-    //Gets called when "Stop" button is pressed to end all threads
-    private void stopComparison()
-    {
-        if(fileChecker != null) {
-            fileChecker.stopAllThreads();
-            fileChecker = null;
-            System.out.println("Stopping comparison...");
-        }
     }
 
     //GUI Error prompt with error message
