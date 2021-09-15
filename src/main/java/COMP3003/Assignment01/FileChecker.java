@@ -25,6 +25,7 @@ public class FileChecker {
     private final Object mutex = new Object();
     private static final String POISON = new String();
     private ExecutorService consExec;
+    private boolean allThreadsStopped;
 
     //Other Fields
     private final UserInterface ui;
@@ -47,6 +48,7 @@ public class FileChecker {
         nonEmptyFileExist = false;
         producerThread = null;
         mainConsumerThread = null;
+        allThreadsStopped = true;
     }
 
     public void startThreads()
@@ -56,6 +58,7 @@ public class FileChecker {
             mainConsumerThread = new Thread(this::mainConsumerTask, "MainConsumer-Thread");
             producerThread.start();
             mainConsumerThread.start();
+            allThreadsStopped = false;
         }
     }
 
@@ -63,7 +66,7 @@ public class FileChecker {
     public void endThreads()
     {
         //Only ends threads if thread pool hasn't ended which means program was still going
-        if(queue != null && consExec != null) {
+        if(!allThreadsStopped) {
             System.out.println("Current execution ending...");
             consExec.shutdownNow(); //Thread pool end
             if(producerThread != null) {
@@ -81,6 +84,7 @@ public class FileChecker {
             //Once all threads are complete/ending, no purpose in keeping reference to these values
             queue = null;
             consExec = null;
+            allThreadsStopped = true;
         }
     }
 
@@ -127,11 +131,6 @@ public class FileChecker {
         catch(InterruptedException ex) {
             //Nothing to do if thread gets interrupted other than end gracefully
             System.out.println("[Producer Thread] Interrupted Exception Occurred. All Threads ending");
-            endThreads();
-        }
-        catch (NullPointerException ex) {
-            //Should never happen but if queue somehow becomes null and enters execution then there will be a null pointer exception
-            System.out.println("[Producer Thread] Null Pointer Exception Occurred. All Threads ending");
             endThreads();
         }
     }
@@ -218,7 +217,7 @@ public class FileChecker {
             ui.updateProgress(value);
         });
 
-        if (value == 1) { //Program has finished with no more tasks to be processed
+        if (value == 1 && producerThread == null) { //Program has finished with no more tasks to be processed
             //Shuts everything down in case they haven't already
             System.out.println("[Progress Checker] 100% Execution");
             endThreads();
