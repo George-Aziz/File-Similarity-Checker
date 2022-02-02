@@ -16,7 +16,7 @@ import java.io.PrintWriter;
 /**************************************************************************************
  * Author: George Aziz
  * Purpose: Basic GUI (JavaFX) to compare files
- * Date Last Modified: 15/09/2021
+ * Date Last Modified: 16/09/2021
  * NOTE: The JavaFX code used within this class has been taken from provided demo code
  * and slightly modified to my needs
  **************************************************************************************/
@@ -50,7 +50,10 @@ public class UserInterface {
 
         // Set up button event handlers.
         compareBtn.setOnAction(event -> crossCompare(stage, threadPoolCount));
-        stopBtn.setOnAction(event -> fileChecker.endThreads());
+        stopBtn.setOnAction(event ->
+        {
+            if (fileChecker != null) { fileChecker.endThreads(); }
+        });
 
         //Ensures integers are only selected for slider
         threadPoolCountSlider.valueProperty().addListener((obs, oldVal, newVal) ->
